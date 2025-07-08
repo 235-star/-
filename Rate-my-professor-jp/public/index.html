@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="らくたん広場は日本の大学・教授を検索・評価できる匿名レビューサイトです。受験生や大学生に役立つリアルな情報が集まります。">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data:; connect-src 'self';" />
+    <title>大学・教授レビューサイト - らくたん広場</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="style.css" />
+    
+    <!-- Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "らくたん広場",
+      "url": "https://rakutan-hiroba.com",
+      "description": "日本の大学・教授に関するレビューを掲載する匿名サイトです。",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.5",
+        "reviewCount": "123"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <!-- Fixed contact info in top-right corner -->
+    <div class="contact-info-fixed">
+      <span class="contact-text">X(お問い合わせ): <a href="https://twitter.com/rakutan_hiroba" target="_blank">@rakutan_hiroba</a></span>
+    </div>
+
+    <header class="header">
+      <h1><a href="#" id="logo-link" class="logo-link">らくたん広場</a></h1>
+      <p>日本の大学・教授を検索・評価</p>
+      <nav class="breadcrumb">
+        <span id="breadcrumb-content"></span>
+      </nav>
+    </header>
+
+    <main class="main-container">
+      <!-- 大学一覧ページ -->
+      <section id="universities-page" class="page">
+        <div class="search-section">
+          <div class="search-container">
+            <div class="search-wrapper">
+              <input
+                type="text"
+                id="university-search"
+                placeholder="大学名で検索..."
+                class="search-input"
+                autocomplete="off"
+              />
+              <div
+                id="university-suggestions"
+                class="suggestions-dropdown"
+                style="display: none"
+              ></div>
+            </div>
+            <button id="university-search-btn" class="search-btn">🔍</button>
+          </div>
+        </div>
+        <div id="universities-list" class="universities-grid"></div>
+      </section>
+
+      <!-- 大学詳細・レビューページ -->
+      <section id="university-detail-page" class="page" style="display: none">
+        <div id="university-detail-content"></div>
+      </section>
+
+      <!-- 教授一覧ページ -->
+      <section id="professors-page" class="page" style="display: none">
+        <div class="page-header">
+          <h2>教授一覧</h2>
+        </div>
+        <div class="search-section">
+          <div class="search-container">
+            <input
+              type="text"
+              id="professor-search"
+              placeholder="教授名、学部名で検索..."
+              class="search-input"
+            />
+            <button id="professor-search-btn" class="search-btn">🔍</button>
+          </div>
+
+          <div class="filter-container">
+            <select id="department-filter" class="filter-select">
+              <option value="">全ての学部</option>
+            </select>
+          </div>
+        </div>
+        <div id="professors-list" class="professors-grid"></div>
+        <div
+          class="add-professor-footer"
+          id="add-professor-footer"
+          style="display: none"
+        >
+          <button
+            class="add-professor-btn-footer"
+            onclick="openAddProfessorModal()"
+          >
+            <span class="plus-icon">+</span>
+            教授を追加
+          </button>
+        </div>
+      </section>
+
+      <!-- 教授詳細・レビューページ -->
+      <section id="professor-detail-page" class="page" style="display: none">
+        <div id="professor-detail-content"></div>
+      </section>
+
+      <!-- 大学レビュー追加モーダル -->
+      <div id="university-review-modal" class="modal">
+        <div class="modal-content">
+          <span class="close">&times;</span>
+          <h2>大学レビューを投稿</h2>
+          <form id="university-review-form">
+            <div class="form-group">
+              <label>総合評価:</label>
+              <div class="rating-input" data-rating="overall">
+                <span data-value="1">⭐</span>
+                <span data-value="2">⭐</span>
+                <span data-value="3">⭐</span>
+                <span data-value="4">⭐</span>
+                <span data-value="5">⭐</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>学術レベル:</label>
+              <div class="rating-input" data-rating="academic">
+                <span data-value="1">⭐</span>
+                <span data-value="2">⭐</span>
+                <span data-value="3">⭐</span>
+                <span data-value="4">⭐</span>
+                <span data-value="5">⭐</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>施設・環境:</label>
+              <div class="rating-input" data-rating="facility">
+                <span data-value="1">⭐</span>
+                <span data-value="2">⭐</span>
+                <span data-value="3">⭐</span>
+                <span data-value="4">⭐</span>
+                <span data-value="5">⭐</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>就職サポート:</label>
+              <div class="rating-input" data-rating="employment">
+                <span data-value="1">⭐</span>
+                <span data-value="2">⭐</span>
+                <span data-value="3">⭐</span>
+                <span data-value="4">⭐</span>
+                <span data-value="5">⭐</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="uni-faculty">学部:</label>
+              <input
+                type="text"
+                id="uni-faculty"
+                required
+                placeholder="例: 工学部"
+              />
+            </div>
+            <div class="form-group">
+              <label for="graduation-year">卒業年:</label>
+              <input
+                type="number"
+                id="graduation-year"
+                min="2000"
+                max="2030"
+                placeholder="例: 2024"
+              />
+            </div>
+            <div class="form-group">
+              <label for="uni-comment">コメント (任意):</label>
+              <textarea
+                id="uni-comment"
+                rows="4"
+                placeholder="大学の感想、後輩へのアドバイスなどを書いてください... (任意)"
+              ></textarea>
+            </div>
+            <button type="submit">レビューを投稿</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 教授レビュー追加モーダル -->
+      <div id="professor-review-modal" class="modal">
+        <div class="modal-content">
+          <span class="close">&times;</span>
+          <h2>教授レビューを投稿</h2>
+          <form id="professor-review-form">
+            <div class="form-group">
+              <label>総合評価:</label>
+              <div class="rating-input" data-rating="overall">
+                <span data-value="1">⭐</span>
+                <span data-value="2">⭐</span>
+                <span data-value="3">⭐</span>
+                <span data-value="4">⭐</span>
+                <span data-value="5">⭐</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>楽単度:</label>
+              <div class="rating-input" data-rating="difficulty">
+                <span data-value="1">⭐</span>
+                <span data-value="2">⭐</span>
+                <span data-value="3">⭐</span>
+                <span data-value="4">⭐</span>
+                <span data-value="5">⭐</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>自由度:</label>
+              <div class="rating-input" data-rating="strictness">
+                <span data-value="1">⭐</span>
+                <span data-value="2">⭐</span>
+                <span data-value="3">⭐</span>
+                <span data-value="4">⭐</span>
+                <span data-value="5">⭐</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>この講義をもう一度履修したいと思いますか？</label>
+              <div class="radio-group">
+                <label class="radio-option">
+                  <input
+                    type="radio"
+                    name="would-retake"
+                    value="yes"
+                    required
+                  />
+                  <span class="radio-text">はい（また履修したい）</span>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="would-retake" value="no" required />
+                  <span class="radio-text">いいえ（もう履修したくない）</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="attendance">出席確認:</label>
+              <select id="attendance" name="attendance" required>
+                <option value="">選択してください</option>
+                <option value="required">有</option>
+                <option value="none">無</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>取得グレード (予想でも可):</label>
+              <select id="professor-grade" name="grade" required>
+                <option value="">選択してください</option>
+                <option value="A+">A+ (90-100点)</option>
+                <option value="A">A (80-89点)</option>
+                <option value="B">B (70-79点)</option>
+                <option value="C">C (60-69点)</option>
+                <option value="D">D (不合格)</option>
+                <option value="未取得">未取得</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="course">科目名:</label>
+              <input type="text" id="course" required />
+            </div>
+            <div class="form-group">
+              <label for="semester">学期:</label>
+              <input type="text" id="semester" placeholder="例: 2024年春学期" />
+            </div>
+            <div class="form-group">
+              <label for="prof-comment">コメント (任意):</label>
+              <textarea
+                id="prof-comment"
+                rows="4"
+                placeholder="授業の感想、アドバイスなどを書いてください... (任意)"
+              ></textarea>
+            </div>
+            <button type="submit">レビューを投稿</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Add Professor Modal -->
+      <div id="addProfessorModal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Add Professor</h2>
+            <span class="close" onclick="closeModal('addProfessorModal')"
+              >&times;</span
+            >
+          </div>
+          <form id="addProfessorForm" onsubmit="submitProfessorData(event)">
+            <div class="form-group">
+              <label for="professorName">教授名:</label>
+              <input
+                type="text"
+                id="professorName"
+                name="name"
+                required
+                placeholder="田中太郎"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="professorDepartment">学部・学科:</label>
+              <input
+                type="text"
+                id="professorDepartment"
+                name="department"
+                required
+                placeholder="文学部, 経済学部, 工学部など"
+              />
+            </div>
+
+            <input
+              type="hidden"
+              id="professorUniversityId"
+              name="universityId"
+              value=""
+            />
+
+            <button type="submit" class="submit-btn">教授を追加</button>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
