@@ -1521,3 +1521,8 @@ body {
         padding: 5px 8px;
     }
 }
+.load-more-container {
+  height: 1px;
+  margin-bottom: 30px;
+}
+
