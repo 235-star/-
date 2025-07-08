@@ -816,19 +816,10 @@ document.addEventListener("DOMContentLoaded", function () {
     function generateStars(rating) {
         const fullStars = Math.floor(rating);
         const hasHalfStar = rating % 1 >= 0.5;
-        let stars = "";
 
-        for (let i = 0; i < fullStars; i++) {
-            stars += "★";
-        }
-        if (hasHalfStar) {
-            stars += "☆";
-        }
-        for (let i = fullStars + (hasHalfStar ? 1 : 0); i < 5; i++) {
-            stars += "☆";
-        }
-
-        return stars;
+        return "★".repeat(fullStars) +
+            (hasHalfStar ? "☆" : "") +
+            "☆".repeat(5 - fullStars - (hasHalfStar ? 1 : 0));
     }
 
     // Vote tracking storage

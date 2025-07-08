@@ -14,6 +14,11 @@ export interface IStorage {
   
   // Reviews
   getReviewsByProfessor(professorId: number): Promise<Review[]>;
+  getRecentReviews(limit: number): Promise<(Review & {
+    professorName: string;
+    professorDepartment: string;
+    universityName: string;
+  })[]>;
   createReview(review: InsertReview): Promise<Review>;
   
   // Search
@@ -218,6 +223,27 @@ export class MemStorage implements IStorage {
       .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
   }
 
+  async getRecentReviews(limit: number): Promise<(Review & {
+    professorName: string;
+    professorDepartment: string;
+    universityName: string;
+  })[]> {
+    const sorted = Array.from(this.reviews.values())
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
+      .slice(0, limit);
+
+    return sorted.map(review => {
+      const professor = this.professors.get(review.professorId);
+      const university = professor ? this.universities.get(professor.universityId) : undefined;
+      return {
+        ...review,
+        professorName: professor?.name || "",
+        professorDepartment: professor?.department || "",
+        universityName: university?.name || "",
+      };
+    });
+  }
+
   async createReview(review: InsertReview): Promise<Review> {
     const newReview: Review = {
       id: this.currentReviewId++,
@@ -272,15 +298,6 @@ export class MemStorage implements IStorage {
     totalProfessors: number;
     totalVisits: number;
   }> {
-    const uniqueUniversityIds = new Set<number>();
-    const uniqueProfessorIds = new Set<number>();
-
-    // Count unique universities and professors from the data
-    for (const professor of this.professors.values()) {
-      uniqueUniversityIds.add(professor.universityId);
-      uniqueProfessorIds.add(professor.id);
-    }
-
     return {
       totalReviews: this.reviews.size,
       totalUniversities: this.universities.size,
