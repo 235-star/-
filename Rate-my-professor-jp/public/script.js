@@ -1250,17 +1250,17 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
         if (reviews.length > 0) {
-            university.overallRating =
-                reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-            university.academicRating =
-                reviews.reduce((sum, r) => sum + r.academicRating, 0) /
-                reviews.length;
-            university.facilityRating =
-                reviews.reduce((sum, r) => sum + r.facilityRating, 0) /
-                reviews.length;
-            university.employmentRating =
-                reviews.reduce((sum, r) => sum + r.employmentRating, 0) /
-                reviews.length;
+            let overall = 0, academic = 0, facility = 0, employment = 0;
+            for (const r of reviews) {
+                overall += r.rating;
+                academic += r.academicRating;
+                facility += r.facilityRating;
+                employment += r.employmentRating;
+            }
+            university.overallRating = overall / reviews.length;
+            university.academicRating = academic / reviews.length;
+            university.facilityRating = facility / reviews.length;
+            university.employmentRating = employment / reviews.length;
             university.reviewCount = reviews.length;
         }
     }
@@ -1272,29 +1272,23 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
         if (reviews.length > 0) {
-            professor.overallRating =
-                reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-            professor.difficulty = Math.round(
-                reviews.reduce((sum, r) => sum + r.difficulty, 0) /
-                    reviews.length,
-            );
-            professor.strictness = Math.round(
-                reviews.reduce((sum, r) => sum + r.strictness, 0) /
-                    reviews.length,
-            );
+            let overall = 0, difficulty = 0, strictness = 0, retakeTotal = 0, retakeYes = 0;
+            for (const r of reviews) {
+                overall += r.rating;
+                difficulty += r.difficulty;
+                strictness += r.strictness;
+                if (r.wouldRetake !== undefined) {
+                    retakeTotal++;
+                    if (r.wouldRetake === true) retakeYes++;
+                }
+            }
+            professor.overallRating = overall / reviews.length;
+            professor.difficulty = Math.round(difficulty / reviews.length);
+            professor.strictness = Math.round(strictness / reviews.length);
             professor.reviewCount = reviews.length;
-
-            // Calculate retake rate
-            const retakeReviews = reviews.filter(
-                (r) => r.wouldRetake !== undefined,
-            );
-            const retakeYes = retakeReviews.filter(
-                (r) => r.wouldRetake === true,
-            ).length;
-            professor.retakeRate =
-                retakeReviews.length > 0
-                    ? Math.round((retakeYes / retakeReviews.length) * 100)
-                    : 0;
+            professor.retakeRate = retakeTotal
+                ? Math.round((retakeYes / retakeTotal) * 100)
+                : 0;
         }
     }
 
