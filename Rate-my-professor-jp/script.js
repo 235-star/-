@@ -11,6 +11,8 @@ let reviewsData = [];
 let currentFilteredUniversities = [];
 const universitiesPerPage = 20;
 let displayedUniversitiesCount = 0;
+const maxDomUniversities = 60; // virtualization limit
+let universityItemHeight = 0;
 let currentSearchQuery = '';
 
 // Firestore helper functions
@@ -166,6 +168,28 @@ function getRemainingTime(type) {
     }
     
     return 0;
+}
+
+// Utility: throttle execution to reduce DOM updates
+function throttle(fn, wait) {
+    let lastTime = 0;
+    let timeout;
+    return function(...args) {
+        const now = Date.now();
+        const remaining = wait - (now - lastTime);
+        if (remaining <= 0) {
+            clearTimeout(timeout);
+            timeout = null;
+            lastTime = now;
+            fn.apply(this, args);
+        } else if (!timeout) {
+            timeout = setTimeout(() => {
+                lastTime = Date.now();
+                timeout = null;
+                fn.apply(this, args);
+            }, remaining);
+        }
+    };
 }
 
 // Update submit button state based on rate limiting
@@ -458,83 +482,95 @@ document.addEventListener('DOMContentLoaded', function() {
         breadcrumb.innerHTML = content;
     }
 
-    // 大学一覧表示
-    function displayUniversities(searchQuery = '', append = false) {
+    // 大学一覧表示 (virtualized)
+    function displayUniversities(searchQuery = '') {
         const universitiesList = document.getElementById('universities-list');
+        let filteredUniversities = universitiesData;
 
-        if (!append) {
-            let filteredUniversities = universitiesData;
-            if (searchQuery) {
-                const normalizedQuery = normalizeInput(searchQuery);
-                filteredUniversities = universitiesData.filter(uni =>
-                    uni.normName.includes(normalizedQuery) ||
-                    uni.normLocation.includes(normalizedQuery) ||
-                    uni.normType.includes(normalizedQuery) ||
-                    (uni.normVariations && uni.normVariations.some(v => v.includes(normalizedQuery)))
-                );
-            
-            // 検索結果をソート（関連性順）
-                filteredUniversities.sort((a, b) => {
-                    const aNameMatch = a.normName.includes(normalizedQuery);
-                    const bNameMatch = b.normName.includes(normalizedQuery);
+        if (searchQuery) {
+            const normalizedQuery = normalizeInput(searchQuery);
+            filteredUniversities = universitiesData.filter(uni =>
+                uni.normName.includes(normalizedQuery) ||
+                uni.normLocation.includes(normalizedQuery) ||
+                uni.normType.includes(normalizedQuery) ||
+                (uni.normVariations && uni.normVariations.some(v => v.includes(normalizedQuery)))
+            );
 
-                    if (aNameMatch && !bNameMatch) return -1;
-                    if (!aNameMatch && bNameMatch) return 1;
+            // 関連性順にソート
+            filteredUniversities.sort((a, b) => {
+                const aNameMatch = a.normName.includes(normalizedQuery);
+                const bNameMatch = b.normName.includes(normalizedQuery);
 
-                    return b.overallRating - a.overallRating;
-                });
-            } else {
-                // 検索なしの場合は評価順
-                filteredUniversities.sort((a, b) => b.overallRating - a.overallRating);
-            }
+                if (aNameMatch && !bNameMatch) return -1;
+                if (!aNameMatch && bNameMatch) return 1;
 
-            if (filteredUniversities.length === 0) {
-                universitiesList.innerHTML = `
-                <div class="no-results">
-                    <h3>検索結果が見つかりませんでした</h3>
-                    <p>「${searchQuery}」に一致する大学が見つかりません。</p>
-                    <p>別のキーワードで検索してみてください。</p>
-                </div>
-                `;
-                document.getElementById('load-more-universities').style.display = 'none';
-                return;
-            }
-
-            // 検索結果数を表示
-            if (searchQuery.trim()) {
-                const resultCount = document.createElement('div');
-                resultCount.className = 'search-results-count';
-                resultCount.textContent = `「${searchQuery}」の検索結果: ${filteredUniversities.length}件`;
-                universitiesList.innerHTML = resultCount.outerHTML;
-            } else {
-                universitiesList.innerHTML = '';
-            }
-
-            currentFilteredUniversities = filteredUniversities;
-            displayedUniversitiesCount = 0;
-            currentSearchQuery = searchQuery;
+                return b.overallRating - a.overallRating;
+            });
+        } else {
+            filteredUniversities.sort((a, b) => b.overallRating - a.overallRating);
         }
 
-        const universitiesToDisplay = currentFilteredUniversities.slice(displayedUniversitiesCount, displayedUniversitiesCount + universitiesPerPage);
-        displayedUniversitiesCount += universitiesToDisplay.length;
+        if (filteredUniversities.length === 0) {
+            universitiesList.innerHTML = `
+            <div class="no-results">
+                <h3>検索結果が見つかりませんでした</h3>
+                <p>「${searchQuery}」に一致する大学が見つかりません。</p>
+                <p>別のキーワードで検索してみてください。</p>
+            </div>
+            `;
+            return;
+        }
 
-        universitiesList.innerHTML += universitiesToDisplay.map(university => `
+        currentFilteredUniversities = filteredUniversities;
+        currentSearchQuery = searchQuery;
+        universityItemHeight = 0;
+        renderVirtualUniversities();
+    }
+
+    function renderVirtualUniversities() {
+        const list = document.getElementById('universities-list');
+        if (!currentFilteredUniversities.length) return;
+
+        if (!universityItemHeight && list.firstElementChild) {
+            universityItemHeight = list.firstElementChild.getBoundingClientRect().height + 20;
+        }
+
+        if (!universityItemHeight) {
+            // 初回計測のため1件描画
+            const first = currentFilteredUniversities[0];
+            list.innerHTML = createUniversityHTML(first);
+            universityItemHeight = list.firstElementChild.getBoundingClientRect().height + 20;
+        }
+
+        const scrollTop = window.scrollY - list.offsetTop;
+        const startIndex = Math.max(0, Math.floor(scrollTop / universityItemHeight) - 5);
+        const visibleCount = Math.ceil(window.innerHeight / universityItemHeight) + 10;
+        const endIndex = Math.min(currentFilteredUniversities.length, startIndex + visibleCount);
+
+        const visibleItems = currentFilteredUniversities.slice(startIndex, endIndex);
+
+        list.style.paddingTop = `${startIndex * universityItemHeight}px`;
+        list.style.paddingBottom = `${(currentFilteredUniversities.length - endIndex) * universityItemHeight}px`;
+        list.innerHTML = visibleItems.map(createUniversityHTML).join('');
+    }
+
+    function createUniversityHTML(university) {
+        const query = currentSearchQuery;
+        return `
             <div class="university-card">
                 <div class="university-header">
                     <div class="university-content" onclick="showUniversityDetail(${university.id})">
                         <div class="university-name">
-                            ${searchQuery ? highlightMatch(sanitizeHTML(university.name), searchQuery) : sanitizeHTML(university.name)}
+                            ${query ? highlightMatch(sanitizeHTML(university.name), query) : sanitizeHTML(university.name)}
                             <span class="university-type">${sanitizeHTML(university.type)}</span>
                         </div>
                         <div class="university-info">
                             📍 ${sanitizeHTML(university.location)} | 設立: ${sanitizeHTML(university.established)}年
                         </div>
-                        
                         <div class="rating-display">
                             <span class="stars">${generateStars(university.overallRating)}</span>
                             <span class="rating-text">${university.overallRating.toFixed(1)}</span>
                         </div>
-                        
                         <div class="university-stats">
                             <div class="university-stat-item">
                                 <div class="university-stat-value">${university.academicRating.toFixed(1)}</div>
@@ -549,20 +585,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="university-stat-label">就職サポート</div>
                             </div>
                         </div>
-                        
                         <div class="review-count">${university.reviewCount}件のレビュー</div>
                     </div>
-
                 </div>
-            </div>
-        `).join('');
-
-        const loadMoreBtn = document.getElementById('load-more-universities');
-        if (displayedUniversitiesCount >= currentFilteredUniversities.length) {
-            loadMoreBtn.style.display = 'none';
-        } else {
-            loadMoreBtn.style.display = 'block';
-        }
+            </div>`;
     }
 
     // 大学詳細表示
@@ -985,10 +1011,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         departmentFilter.addEventListener('change', searchProfessors);
 
-        const loadMoreBtn = document.getElementById('load-more-universities');
-        loadMoreBtn.addEventListener('click', () => {
-            displayUniversities(currentSearchQuery, true);
-        });
+        const sentinel = document.getElementById('load-more-universities');
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                renderVirtualUniversities();
+            }
+        }, { rootMargin: '200px' });
+        observer.observe(sentinel);
+
+        window.addEventListener('scroll', throttle(renderVirtualUniversities, 100));
 
         // モーダル関連
         setupModalListeners();

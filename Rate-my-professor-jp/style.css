@@ -1600,28 +1600,8 @@ body {
 }
 
 .load-more-container {
-  text-align: center;
+  height: 1px;
   margin-bottom: 30px;
-}
-
-.load-more-btn {
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.load-more-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.load-more-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 @media (max-width: 600px) {
