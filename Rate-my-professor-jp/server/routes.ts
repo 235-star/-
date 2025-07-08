@@ -104,24 +104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/reviews/recent", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 5;
-      const professors = await storage.getProfessors();
-      const allReviews = [];
-
-      for (const professor of professors) {
-        const reviews = await storage.getReviewsByProfessor(professor.id);
-        allReviews.push(...reviews.map(review => ({
-          ...review,
-          professorName: professor.name,
-          professorDepartment: professor.department,
-          universityName: professor.universityName,
-        })));
-      }
-
-      // Sort by creation date and limit
-      const recentReviews = allReviews
-        .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
-        .slice(0, limit);
-
+      const recentReviews = await storage.getRecentReviews(limit);
       res.json(recentReviews);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch recent reviews" });

@@ -222,13 +222,26 @@ document.addEventListener('DOMContentLoaded', function() {
         universityReviewsData = dataModule.universityReviewsData;
         professorsData = dataModule.professorsData;
         reviewsData = dataModule.reviewsData;
+        prepareData();
         await initializeApp();
+    }
+
+    function prepareData() {
+        universitiesData.forEach(u => {
+            u.normName = normalizeInput(u.name);
+            u.normLocation = normalizeInput(u.location);
+            u.normType = normalizeInput(u.type);
+            if (u.nameVariations) {
+                u.normVariations = u.nameVariations.map(v => normalizeInput(v));
+            }
+        });
     }
 
     async function initializeApp() {
         const firestoreProfessors = await fetchProfessorsFromFirestore();
+        const existingIds = new Set(professorsData.map(p => p.id));
         firestoreProfessors.forEach(p => {
-            if (!professorsData.find(local => local.id === p.id)) {
+            if (!existingIds.has(p.id)) {
                 professorsData.push(p);
             }
         });
@@ -300,35 +313,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const normalizedQuery = normalizeInput(query);
         const filteredUniversities = universitiesData.filter(university => {
-            const normalizedName = normalizeInput(university.name);
-            const normalizedLocation = normalizeInput(university.location);
-            const normalizedType = normalizeInput(university.type);
-            
-            // より厳密なマッチング - 最低1文字は一致している必要がある
-            const nameMatch = normalizedName.includes(normalizedQuery);
-            const locationMatch = normalizedLocation.includes(normalizedQuery);
-            const typeMatch = normalizedType.includes(normalizedQuery);
-            
-            // nameVariationsでのマッチング
-            const variationMatch = university.nameVariations && 
-                university.nameVariations.some(variation => 
-                    normalizeInput(variation).includes(normalizedQuery)
-                );
-            
+            const nameMatch = university.normName.includes(normalizedQuery);
+            const locationMatch = university.normLocation.includes(normalizedQuery);
+            const typeMatch = university.normType.includes(normalizedQuery);
+
+            const variationMatch = university.normVariations &&
+                university.normVariations.some(v => v.includes(normalizedQuery));
+
             return nameMatch || locationMatch || typeMatch || variationMatch;
         });
 
         // 関連性でソート（名前の一致を優先）
         filteredUniversities.sort((a, b) => {
-            const aNameMatch = normalizeInput(a.name).includes(normalizedQuery);
-            const bNameMatch = normalizeInput(b.name).includes(normalizedQuery);
+            const aNameMatch = a.normName.includes(normalizedQuery);
+            const bNameMatch = b.normName.includes(normalizedQuery);
             
             if (aNameMatch && !bNameMatch) return -1;
             if (!aNameMatch && bNameMatch) return 1;
             
             // 名前の先頭マッチを優先
-            const aStartsWithMatch = normalizeInput(a.name).startsWith(normalizedQuery);
-            const bStartsWithMatch = normalizeInput(b.name).startsWith(normalizedQuery);
+            const aStartsWithMatch = a.normName.startsWith(normalizedQuery);
+            const bStartsWithMatch = b.normName.startsWith(normalizedQuery);
             
             if (aStartsWithMatch && !bStartsWithMatch) return -1;
             if (!aStartsWithMatch && bStartsWithMatch) return 1;
@@ -461,23 +466,17 @@ document.addEventListener('DOMContentLoaded', function() {
             let filteredUniversities = universitiesData;
             if (searchQuery) {
                 const normalizedQuery = normalizeInput(searchQuery);
-                filteredUniversities = universitiesData.filter(uni => {
-                    const normalizedName = normalizeInput(uni.name);
-                    const normalizedLocation = normalizeInput(uni.location);
-                    const normalizedType = normalizeInput(uni.type);
-                
-                return normalizedName.includes(normalizedQuery) ||
-                       normalizedLocation.includes(normalizedQuery) ||
-                       normalizedType.includes(normalizedQuery) ||
-                       (uni.nameVariations && uni.nameVariations.some(variation => 
-                           normalizeInput(variation).includes(normalizedQuery)
-                       ));
-            });
+                filteredUniversities = universitiesData.filter(uni =>
+                    uni.normName.includes(normalizedQuery) ||
+                    uni.normLocation.includes(normalizedQuery) ||
+                    uni.normType.includes(normalizedQuery) ||
+                    (uni.normVariations && uni.normVariations.some(v => v.includes(normalizedQuery)))
+                );
             
             // 検索結果をソート（関連性順）
                 filteredUniversities.sort((a, b) => {
-                    const aNameMatch = normalizeInput(a.name).includes(normalizedQuery);
-                    const bNameMatch = normalizeInput(b.name).includes(normalizedQuery);
+                    const aNameMatch = a.normName.includes(normalizedQuery);
+                    const bNameMatch = b.normName.includes(normalizedQuery);
 
                     if (aNameMatch && !bNameMatch) return -1;
                     if (!aNameMatch && bNameMatch) return 1;
@@ -850,19 +849,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function generateStars(rating) {
         const fullStars = Math.floor(rating);
         const hasHalfStar = rating % 1 >= 0.5;
-        let stars = '';
-        
-        for (let i = 0; i < fullStars; i++) {
-            stars += '★';
-        }
-        if (hasHalfStar) {
-            stars += '☆';
-        }
-        for (let i = fullStars + (hasHalfStar ? 1 : 0); i < 5; i++) {
-            stars += '☆';
-        }
-        
-        return stars;
+
+        return '★'.repeat(fullStars) +
+            (hasHalfStar ? '☆' : '') +
+            '☆'.repeat(5 - fullStars - (hasHalfStar ? 1 : 0));
     }
 
     // Vote tracking storage
@@ -1239,10 +1229,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const reviews = await fetchUniversityReviews(universityId);
 
         if (reviews.length > 0) {
-            university.overallRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-            university.academicRating = reviews.reduce((sum, r) => sum + r.academicRating, 0) / reviews.length;
-            university.facilityRating = reviews.reduce((sum, r) => sum + r.facilityRating, 0) / reviews.length;
-            university.employmentRating = reviews.reduce((sum, r) => sum + r.employmentRating, 0) / reviews.length;
+            let overall = 0, academic = 0, facility = 0, employment = 0;
+            for (const r of reviews) {
+                overall += r.rating;
+                academic += r.academicRating;
+                facility += r.facilityRating;
+                employment += r.employmentRating;
+            }
+            university.overallRating = overall / reviews.length;
+            university.academicRating = academic / reviews.length;
+            university.facilityRating = facility / reviews.length;
+            university.employmentRating = employment / reviews.length;
             university.reviewCount = reviews.length;
         } else {
             university.overallRating = 0;
@@ -1258,14 +1255,21 @@ document.addEventListener('DOMContentLoaded', function() {
         const reviews = await fetchProfessorReviews(professorId);
 
         if (reviews.length > 0) {
-            professor.overallRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-            professor.difficulty = Math.round(reviews.reduce((sum, r) => sum + r.difficulty, 0) / reviews.length);
-            professor.strictness = Math.round(reviews.reduce((sum, r) => sum + r.strictness, 0) / reviews.length);
+            let overall = 0, difficulty = 0, strictness = 0, retakeTotal = 0, retakeYes = 0;
+            for (const r of reviews) {
+                overall += r.rating;
+                difficulty += r.difficulty;
+                strictness += r.strictness;
+                if (r.wouldRetake !== undefined) {
+                    retakeTotal++;
+                    if (r.wouldRetake === true) retakeYes++;
+                }
+            }
+            professor.overallRating = overall / reviews.length;
+            professor.difficulty = Math.round(difficulty / reviews.length);
+            professor.strictness = Math.round(strictness / reviews.length);
             professor.reviewCount = reviews.length;
-
-            const retakeReviews = reviews.filter(r => r.wouldRetake !== undefined);
-            const retakeYes = retakeReviews.filter(r => r.wouldRetake === true).length;
-            professor.retakeRate = retakeReviews.length > 0 ? Math.round((retakeYes / retakeReviews.length) * 100) : 0;
+            professor.retakeRate = retakeTotal ? Math.round((retakeYes / retakeTotal) * 100) : 0;
         } else {
             professor.overallRating = 0;
             professor.difficulty = 0;
